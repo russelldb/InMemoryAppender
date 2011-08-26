@@ -17,11 +17,29 @@ import java.util.Collection;
 import java.util.LinkedList;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import org.apache.commons.httpclient.NoHttpResponseException;
 import org.apache.log4j.AppenderSkeleton;
 import org.apache.log4j.Logger;
 import org.apache.log4j.spi.LoggingEvent;
 
 /**
+ * An in memory log4j appender that collects log statements in a circular
+ * buffer.
+ * <p>
+ * Created to allow apache hc "wire_trace" logging to be on always without
+ * filling the logs with noise.
+ * 
+ * Works in concert with {@link LogNoHttpResponseRetryHandler}, when the retry
+ * handler is called with a {@link NoHttpResponseException} it calls
+ * <code>dump</code> on the InMemoryAppender.
+ * </p>
+ * 
+ * <p>
+ * Note: in order for this all to work you must configure your logging
+ * correctly. See the example log4j.properties in this project.
+ * </p>
+ * 
+ * 
  * @author russell
  * 
  */
@@ -32,11 +50,10 @@ public class InMemoryAppender extends AppenderSkeleton {
     private int capacity = 1000;
     private LinkedBlockingQueue<LoggingEvent> buffer = new LinkedBlockingQueue<LoggingEvent>(capacity);
 
-    
     public synchronized void setCapacity(int capacity) {
         this.capacity = capacity;
     }
-    
+
     /*
      * (non-Javadoc)
      * 
@@ -45,7 +62,7 @@ public class InMemoryAppender extends AppenderSkeleton {
     @Override public void close() {
         buffer.clear();
     }
-    
+
     /*
      * (non-Javadoc)
      * 
@@ -63,7 +80,7 @@ public class InMemoryAppender extends AppenderSkeleton {
      * )
      */
     @Override protected void append(LoggingEvent loggingEvent) {
-        synchronized(this) {
+        synchronized (this) {
             if (buffer.size() == capacity) {
                 // pop one off first
                 buffer.poll();
@@ -72,6 +89,9 @@ public class InMemoryAppender extends AppenderSkeleton {
         buffer.offer(loggingEvent);
     }
 
+    /**
+     * call to flush the in memory buffer to the delegate appender.
+     */
     public void dump() {
         // copy buffer contents and dump
         Collection<LoggingEvent> sink = new LinkedList<LoggingEvent>();

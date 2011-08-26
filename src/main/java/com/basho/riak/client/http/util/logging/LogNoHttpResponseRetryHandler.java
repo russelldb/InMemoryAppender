@@ -23,6 +23,15 @@ import org.apache.log4j.Appender;
 import org.apache.log4j.Logger;
 
 /**
+ * An {@link HttpMethodRetryHandler} that delegates directly to the
+ * {@link DefaultHttpMethodRetryHandler}, after first checking the
+ * {@link IOException} type and flushing the {@link InMemoryAppender} if
+ * required.
+ * 
+ * <p>
+ * Works in concert with {@link InMemoryAppender}. To use you must configure
+ * your log4j correctly. See the log4j.properties example with this project
+ * </p>
  * 
  * @author russell
  * 
@@ -33,11 +42,13 @@ public class LogNoHttpResponseRetryHandler implements HttpMethodRetryHandler {
     private static final String INMEM_APPENDER_NAME = "InMem";
     private final DefaultHttpMethodRetryHandler delegate = new DefaultHttpMethodRetryHandler();
 
-    private InMemoryAppender inMemoryAppender;
+    private final InMemoryAppender inMemoryAppender;
 
     public LogNoHttpResponseRetryHandler() {
         Appender a = logger.getAppender(INMEM_APPENDER_NAME);
-        assert a != null;
+        if (a == null) {
+            throw new IllegalStateException("No " + INMEM_APPENDER_NAME + " appender found");
+        }
         inMemoryAppender = (InMemoryAppender) a;
     }
 
