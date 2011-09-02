@@ -1,0 +1,12 @@
+These classes allow you to switch on Apache HTTP Client "wire" level
+logging without filling your logs.
+
+Set up the logger hierarchy (somewhat) like that in the example
+log4j.properties in this project and use the
+=LogNoHttpResponseRetryHandler= as your =HttpResponseRetryHandler=.
+Whenever a NoHttpResponseException is encountered the contents of the
+buffer in the =InMemoryAppender= will be flushed to the delegate
+logger you have configured.
+
+Use =LogNoHttpResponseRetryHandlerTest= as an example to create your
+own handler, to dump the buffer on the exceptions you prefer.
