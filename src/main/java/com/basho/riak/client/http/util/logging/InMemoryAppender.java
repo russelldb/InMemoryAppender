@@ -13,9 +13,9 @@
  */
 package com.basho.riak.client.http.util.logging;
 
+import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.LinkedList;
-import java.util.concurrent.LinkedBlockingQueue;
 
 import org.apache.commons.httpclient.NoHttpResponseException;
 import org.apache.log4j.AppenderSkeleton;
@@ -45,13 +45,25 @@ import org.apache.log4j.spi.LoggingEvent;
  */
 public class InMemoryAppender extends AppenderSkeleton {
 
-    private static final Logger delegate = Logger.getLogger("basho.WireSink");
+    public static final String DEFAULT_NAME = "InMem";
 
+    private final Object bufferLock = new Object();
+    private String delegateLoggerName = "basho.WireSink";
     private int capacity = 1000;
-    private LinkedBlockingQueue<LoggingEvent> buffer = new LinkedBlockingQueue<LoggingEvent>(capacity);
+    private ArrayDeque<LoggingEvent> buffer = new ArrayDeque<LoggingEvent>();
 
-    public synchronized void setCapacity(int capacity) {
-        this.capacity = capacity;
+    public void setCapacity(int capacity) {
+        synchronized (bufferLock) {
+            if (buffer.size() > capacity) {
+                throw new IllegalArgumentException("Can't set capacity to less than current buffer size");
+            } else {
+                this.capacity = capacity;
+            }
+        }
+    }
+
+    public synchronized void setDelegateName(String delegateLoggerName) {
+        this.delegateLoggerName = delegateLoggerName;
     }
 
     /*
@@ -60,7 +72,9 @@ public class InMemoryAppender extends AppenderSkeleton {
      * @see org.apache.log4j.Appender#close()
      */
     @Override public void close() {
-        buffer.clear();
+        synchronized (bufferLock) {
+            buffer.clear();
+        }
     }
 
     /*
@@ -80,22 +94,26 @@ public class InMemoryAppender extends AppenderSkeleton {
      * )
      */
     @Override protected void append(LoggingEvent loggingEvent) {
-        synchronized (this) {
+        synchronized (bufferLock) {
             if (buffer.size() == capacity) {
-                // pop one off first
                 buffer.poll();
             }
+            buffer.offer(loggingEvent);
         }
-        buffer.offer(loggingEvent);
     }
 
     /**
      * call to flush the in memory buffer to the delegate appender.
      */
     public void dump() {
+        Logger delegate = Logger.getLogger(delegateLoggerName);
         // copy buffer contents and dump
-        Collection<LoggingEvent> sink = new LinkedList<LoggingEvent>();
-        buffer.drainTo(sink);
+        Collection<LoggingEvent> sink;
+
+        synchronized (bufferLock) {
+            sink = new LinkedList<LoggingEvent>(buffer);
+            buffer.clear();
+        }
 
         for (LoggingEvent e : sink) {
             delegate.callAppenders(e);

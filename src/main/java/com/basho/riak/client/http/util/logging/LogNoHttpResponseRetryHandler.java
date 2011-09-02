@@ -39,16 +39,21 @@ import org.apache.log4j.Logger;
 public class LogNoHttpResponseRetryHandler implements HttpMethodRetryHandler {
 
     private static final Logger logger = Logger.getLogger("httpclient.wire");
-    private static final String INMEM_APPENDER_NAME = "InMem";
+    private static final String INMEM_APPENDER_NAME = InMemoryAppender.DEFAULT_NAME;
     private final DefaultHttpMethodRetryHandler delegate = new DefaultHttpMethodRetryHandler();
 
     private final InMemoryAppender inMemoryAppender;
 
     public LogNoHttpResponseRetryHandler() {
-        Appender a = logger.getAppender(INMEM_APPENDER_NAME);
-        if (a == null) {
+        this(INMEM_APPENDER_NAME);
+    }
+
+    public LogNoHttpResponseRetryHandler(String inMemAppenderName) {
+        Appender a = logger.getAppender(inMemAppenderName);
+        if (a == null || !(a instanceof InMemoryAppender)) {
             throw new IllegalStateException("No " + INMEM_APPENDER_NAME + " appender found");
         }
+
         inMemoryAppender = (InMemoryAppender) a;
     }
 
