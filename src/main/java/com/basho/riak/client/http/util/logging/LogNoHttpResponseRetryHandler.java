@@ -30,7 +30,11 @@ import org.apache.log4j.Logger;
  * 
  * <p>
  * Works in concert with {@link InMemoryAppender}. To use you must configure
- * your log4j correctly. See the log4j.properties example with this project
+ * your log4j correctly. See the log4j.properties example with this project.
+ * Basically, the "httpclient.wire" logger must have an {@link InMemoryAppender}
+ * configured for it. And the name of the appender must be made available to
+ * this class, either via the constructor or by using
+ * {@link InMemoryAppender#DEFAULT_NAME}
  * </p>
  * 
  * @author russell
@@ -44,10 +48,23 @@ public class LogNoHttpResponseRetryHandler implements HttpMethodRetryHandler {
 
     private final InMemoryAppender inMemoryAppender;
 
+    /**
+     * Create a handler which calls dump on an appender with the name
+     * {@link InMemoryAppender#DEFAULT_NAME}
+     */
     public LogNoHttpResponseRetryHandler() {
         this(INMEM_APPENDER_NAME);
     }
 
+    /**
+     * Create a hndler which called dump on an appender with the name
+     * <code>inMemAppenderName</code>
+     * 
+     * @param inMemAppenderName
+     *            the name of the "httpclient.wire" appender to call
+     *            <code>dump</code> on when a {@link NoHttpResponseException} is
+     *            received.
+     */
     public LogNoHttpResponseRetryHandler(String inMemAppenderName) {
         Appender a = logger.getAppender(inMemAppenderName);
         if (a == null || !(a instanceof InMemoryAppender)) {

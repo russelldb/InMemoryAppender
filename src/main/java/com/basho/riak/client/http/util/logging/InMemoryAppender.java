@@ -23,8 +23,14 @@ import org.apache.log4j.Logger;
 import org.apache.log4j.spi.LoggingEvent;
 
 /**
- * An in memory log4j appender that collects log statements in a circular
- * buffer.
+ * An in memory log4j appender that collects log statements in a buffer.
+ * <p>
+ * The buffer is bounded to the <code>capacity</code> the appender is configured
+ * with. When the capacity is reached, older {@link LoggingEvent}s are dropped
+ * for new ones. The <code>capacity</code> most recent {@link LoggingEvent}s are
+ * kept in the buffer and flushed to a delegate {@link Logger} when
+ * <code>dump()</code> is called.
+ * </p>
  * <p>
  * Created to allow apache hc "wire_trace" logging to be on always without
  * filling the logs with noise.
@@ -52,6 +58,21 @@ public class InMemoryAppender extends AppenderSkeleton {
     private int capacity = 1000;
     private ArrayDeque<LoggingEvent> buffer = new ArrayDeque<LoggingEvent>();
 
+    /**
+     * The maximum number of {@link LoggingEvent}s to hold in the buffer. When
+     * this size is reached older {@link LoggingEvent}s are dropped for new ones
+     * (FIFO)
+     * <p>
+     * Usually called by the log4j framework: eg.
+     * <code>log4j.appender.InMem.Capacity=1000</code>
+     * </p>
+     * <p>
+     * Defaults to 1000 if not set
+     * </p>
+     * 
+     * @param capacity
+     *            the number of {@link LoggingEvent}s to hold in the buffer.
+     */
     public void setCapacity(int capacity) {
         synchronized (bufferLock) {
             if (buffer.size() > capacity) {
@@ -62,6 +83,21 @@ public class InMemoryAppender extends AppenderSkeleton {
         }
     }
 
+    /**
+     * The name of the logger that this appender will delegate to when
+     * <code>dump</code> is called.
+     * <p>
+     * Usually configured by the log4j framework: eg.
+     * log4j.appender.InMem.DelegateLoggerName=myLogger
+     * </p>
+     * <p>
+     * Defaults to "basho.WireSink", if not set.
+     * </p>
+     * 
+     * @param delegateLoggerName
+     *            the name of the logger to flush the buffer to when
+     *            <code>dump</code> is called.
+     */
     public synchronized void setDelegateName(String delegateLoggerName) {
         this.delegateLoggerName = delegateLoggerName;
     }
@@ -103,7 +139,8 @@ public class InMemoryAppender extends AppenderSkeleton {
     }
 
     /**
-     * call to flush the in memory buffer to the delegate appender.
+     * Flushes the buffer to the {@link Logger} named
+     * <code>delegateLoggerName</code>
      */
     public void dump() {
         Logger delegate = Logger.getLogger(delegateLoggerName);
